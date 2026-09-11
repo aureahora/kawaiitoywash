@@ -23,7 +23,7 @@ jobs:
       - name: 🌐 Setup Emscripten (Compiler for Web)
         uses: mymindstorm/setup-emsdk@v14
         with:
-          version: 3.1.64
+          version: 4.0.20
 
       - name: 📥 Clone Godot Engine source code (v4.7)
         run: |
