@@ -27,7 +27,7 @@ jobs:
 
       - name: 📥 Clone Godot Engine source code (v4.7)
         run: |
-          git clone --depth 1 --branch 4.7-stable https://github.com/godotengine/godot .git godot-source
+          git clone --depth 1 --branch 4.7-stable https://github.com/godotengine/godot.git godot-source
 
       - name: ⚙️ Compile Custom Lightweight Web Template
         run: |
