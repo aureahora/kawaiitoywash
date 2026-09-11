@@ -1,0 +1,54 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[addons]
+
+project_builder/config_path="res://project_builds_config.txt"
+
+[application]
+
+config/name="KawaiiToyWash"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[autoload]
+
+YTGameWrapper="*res://Scripts/YTGameSDK/YTGameWrapper.gd"
+
+[display]
+
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[editor]
+
+movie_writer/movie_file="/storage/emulated/0/Documents/Games YouTube Playables/play.avi"
+
+[features]
+
+custom=["disable_3d=true"]
+
+[physics]
+
+3d/active=false
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+textures/webp_compression/compression_method=6
+textures/webp_compression/lossless_compression_factor=10.0
+environment/defaults/default_clear_color=Color(0.18, 0.18, 0.22, 1)
+limits/opengl/disable_3d=true
+textures/vram_compression/basis_universal_quality=1

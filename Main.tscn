@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://main1111"]
+
+[ext_resource type="Script" uid="uid://cif7dy2rfsuca" path="res://Scripts/GameManager.gd" id="1_manager"]
+[ext_resource type="Script" uid="uid://dkt11sprbql0p" path="res://Scripts/UIManager.gd" id="2_ui"]
+[ext_resource type="Script" uid="uid://bu4wnlnuoertm" path="res://Scripts/ScratchPainter.gd" id="3_painter"]
+[ext_resource type="Script" uid="uid://ctcat6slm21w0" path="res://Scripts/EffectManager.gd" id="4_effects"]
+
+[node name="Main" type="Node2D" unique_id=403652264]
+script = ExtResource("1_manager")
+
+[node name="UIManager" type="Node" parent="." unique_id=1744222290]
+script = ExtResource("2_ui")
+
+[node name="ScratchPainter" type="Node2D" parent="." unique_id=1310668800]
+script = ExtResource("3_painter")
+
+[node name="EffectManager" type="Node2D" parent="." unique_id=1104989145]
+script = ExtResource("4_effects")
