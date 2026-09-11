@@ -1,0 +1,45 @@
+name: 🛠️ Build Custom Lightweight Web Export Template
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-web-template:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: 🧾 Checkout Project
+        uses: actions/checkout@v4
+
+      - name: 💽 Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential scons pkg-config libx11-dev libxcursor-dev \
+            libxinerama-dev libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev libudev-dev \
+            libxi-dev libxrandr-dev yasm
+
+      - name: 🌐 Setup Emscripten (Compiler for Web)
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.64
+
+      - name: 📥 Clone Godot Engine source code (v4.7)
+        run: |
+          git clone --depth 1 --branch 4.7-stable https://github.com godot-source
+
+      - name: ⚙️ Compile Custom Lightweight Web Template
+        run: |
+          cd godot-source
+          # Запускаем компиляцию релиза без 3D/тяжелых модулей на основе вашего .gdbuild файла
+          scons platform=web target=template_release optimize=size production=yes \
+            build_config="../minimize.gdbuild"
+        # Если вы еще не создали или не загрузили файл minimize.gdbuild, 
+        # временно удалите часть строки: build_config="../minimize.gdbuild"
+
+      - name: 📦 Upload Lightweight Web WASM Template
+        uses: actions/upload-artifact@v4
+        with:
+          name: custom-godot-web-templates
+          path: godot-source/bin/godot.web.template_release.wasm32.zip
