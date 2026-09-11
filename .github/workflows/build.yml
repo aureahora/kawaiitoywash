@@ -32,11 +32,15 @@ jobs:
       - name: ⚙️ Compile Custom Lightweight Web Template
         run: |
           cd godot-source
-          # Запускаем компиляцию релиза без 3D/тяжелых модулей на основе вашего .gdbuild файла
+          # Компилируем с экстремальным вырезанием неиспользуемых подсистем движка
           scons platform=web target=template_release optimize=size production=yes \
+            minizip=no brotli=no woff2=no graphviz=no \
+            module_basis_universal_enabled=no module_bmp_enabled=no \
+            module_dds_enabled=no module_pvr_enabled=no module_tga_enabled=no \
+            module_gridmap_enabled=no module_jsonrpc_enabled=no \
+            module_regex_enabled=no module_theora_enabled=no \
+            module_upnp_enabled=no module_webm_enabled=no \
             build_config="../minimize.gdbuild"
-        # Если вы еще не создали или не загрузили файл minimize.gdbuild, 
-        # временно удалите часть строки: build_config="../minimize.gdbuild"
 
       - name: 📦 Upload Lightweight Web WASM Template
         uses: actions/upload-artifact@v4
