@@ -32,7 +32,7 @@ jobs:
       - name: ⚙️ Compile Custom Lightweight Web Template
         run: |
           cd godot-source
-          # Компилируем с экстремальным вырезанием неиспользуемых подсистем движка
+          # Добавлен флаг module_lightmapper_rd_enabled=no для исправления ошибки линковки
           scons platform=web target=template_release optimize=size production=yes \
             minizip=no brotli=no woff2=no graphviz=no \
             module_basis_universal_enabled=no module_bmp_enabled=no \
@@ -40,6 +40,7 @@ jobs:
             module_gridmap_enabled=no module_jsonrpc_enabled=no \
             module_regex_enabled=no module_theora_enabled=no \
             module_upnp_enabled=no module_webm_enabled=no \
+            module_lightmapper_rd_enabled=no \
             build_config="../minimize.gdbuild"
 
       - name: 📦 Upload Lightweight Web WASM Template
