@@ -51,7 +51,7 @@ jobs:
             module_lightmapper_rd_enabled=no \
             build_profile="../minimize.gdbuild"
 
-      - name: 🚀 Automate Split Web Export (Chunks 512 KiB)
+      - name: 🚀 Automate Clean Web ZIP Export (Zero-Timeout Standard)
         run: |
           mkdir -p FinalBuild/
           
@@ -67,32 +67,28 @@ jobs:
           sed -i 's|custom_template/release=".*"|custom_template/release=""|g' export_presets.cfg
           sed -i 's|custom_template/debug=".*"|custom_template/debug=""|g' export_presets.cfg
           
-          # ИСПРАВЛЕНИЕ: Возвращаем правильный фильтр экспорта только РЕАЛЬНЫХ ресурсов игры,
-          # чтобы pck весил свои законные 7.8 МБ, а не 137 МБ!
-          sed -i 's/export_filter="all_resources"/export_filter="resources"/g' export_presets.cfg
-          
-          # Отключаем встроенный сплит Godot, так как мы сделаем его надежнее силами Linux
+          # Включаем стандартный экспорт всех ресурсов без всяких нарезных фильтров
+          sed -i 's/export_filter="resources"/export_filter="all_resources"/g' export_presets.cfg
           sed -i 's/split_pck=true/split_pck=false/g' export_presets.cfg
           
-          # Запускаем экспорт проекта через консоль Godot (получаем чистый весящий 7.8 МБ pck)
-          ./godot-cli --headless --export-release "Web" FinalBuild/index.html
+          # ГЛАВНЫЙ СЕКРЕТ: Меняем расширение результирующего файла с .html на .zip!
+          # Консольный Godot 4.7 сам поймет это и упакует ресурсы в index.zip вместо index.pck
+          ./godot-cli --headless --export-release "Web" FinalBuild/index.zip
           
-          # --- НАДЁЖНАЯ НАРЕЗКА МОНОЛИТА НА ЧАНКИ ПО 512 КБ ЧЕРЕЗ LINUX SPLIT ---
-          cd FinalBuild/
-          # Разрезаем index.pck на файлы index.pck.001, index.pck.002 и т.д.
-          split -b 512k -d --suffix-length=3 index.pck index.pck.
-          # Удаляем исходный тяжелый монолит, чтобы он не занимал место в ZIP
-          rm index.pck
-          cd ..
-          
-          # Подставляем наш проверенный универсальный index.html и исправленный мост SDK
+          # Переименовываем index.zip.html в index.html (особенность консольного экспортера)
+          if [ -f "FinalBuild/index.zip.html" ]; then
+            mv FinalBuild/index.zip.html FinalBuild/index.html
+          fi
+
+          # Подставляем наш чистый проверенный универсальный index.html и исправленный мост SDK
+          # (Убедитесь, что ваш index.html в репозитории — чистый, БЕЗ циклов склейки чанков!)
           cp index.html FinalBuild/index.html || true
           cp YTGameSDK_v2.js FinalBuild/YTGameSDK_v2.js || true
 
       - name: 📦 Pack Final Chanked ZIP for Mediacube
         run: |
           cd FinalBuild/
-          # Упаковываем файлы напрямую из папки (все чанки index.pck.000, index.pck.001 попадут внутрь)
+          # Упаковываем index.html, index.js, YTGameSDK_v2.js, index.wasm и наш новый index.zip
           zip -r ../KawaiiToyWash_YT_Ready.zip ./*
 
       - name: 💾 Upload Ready-to-Publish Playable Archive
