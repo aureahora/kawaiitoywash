@@ -55,17 +55,21 @@ jobs:
         run: |
           mkdir -p FinalBuild/
           
-          # Создаем папку шаблонов
+          # Создаем стандартную папку шаблонов Godot на сервере GitHub
           TEMPLATES_DIR="$HOME/.local/share/godot/export_templates/4.7.stable"
           mkdir -p "$TEMPLATES_DIR"
           
-          # Копируем шаблон под всеми возможными именами для обхода проверок
+          # Копируем наш свежескомпилированный легкий шаблон во все возможные слоты
           SRC_ZIP="godot-source/bin/godot.web.template_release.wasm32.zip"
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_release.zip"
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_release.zip"
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_debug.zip"
           
-          # Переключаем режим фильтрации ассетов в export_presets.cfg
+          # --- ИСПРАВЛЕНИЕ: Стираем локальные пути вашего компьютера из конфига проекта ---
+          sed -i 's|custom_template/release=".*"|custom_template/release=""|g' export_presets.cfg
+          sed -i 's|custom_template/debug=".*"|custom_template/debug=""|g' export_presets.cfg
+          
+          # Переключаем режим фильтрации ресурсов для облегчения index.pck
           sed -i 's/export_filter="all_resources"/export_filter="resources"/g' export_presets.cfg
           
           # Запускаем экспорт проекта через консоль Godot
@@ -76,7 +80,7 @@ jobs:
             cp -r assets FinalBuild/
           fi
           
-          # Подставляем универсальный index.html и мост SDK
+          # Подставляем наш универсальный index.html и мост SDK
           cp index.html FinalBuild/index.html || true
           cp YTGameSDK_v2.js FinalBuild/YTGameSDK_v2.js || true
 
