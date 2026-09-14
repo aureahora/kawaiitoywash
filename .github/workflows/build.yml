@@ -55,7 +55,7 @@ jobs:
         run: |
           mkdir -p FinalBuild/
           
-          # Регистрируем наш собранный кастомный легковесный WASM-шаблон в системе Godot
+          # Создаем стандартную папку шаблонов Godot на сервере GitHub
           TEMPLATES_DIR="$HOME/.local/share/godot/export_templates/4.7.stable"
           mkdir -p "$TEMPLATES_DIR"
           SRC_ZIP="godot-source/bin/godot.web.template_release.wasm32.zip"
@@ -63,26 +63,27 @@ jobs:
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_release.zip"
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_debug.zip"
           
-          # Очищаем старые локальные жесткие пути вашего ПК к шаблонам из файла конфигурации
+          # Стираем локальные пути вашего компьютера из конфига проекта
           sed -i 's|custom_template/release=".*"|custom_template/release=""|g' export_presets.cfg
           sed -i 's|custom_template/debug=".*"|custom_template/debug=""|g' export_presets.cfg
           
-          # --- ПРИНУДИТЕЛЬНАЯ НАСТРОЙКА РАЗДЕЛЕНИЯ PCK НА ЧАНКИ ПО 512 КБ ---
-          # Гарантируем, что фильтр собирает ВСЕ ресурсы (картинки и звуки вернутся внутрь архитектуры pck)
-          sed -i 's/export_filter="resources"/export_filter="all_resources"/g' export_presets.cfg
-          sed -i 's/split_pck=false/split_pck=true/g' export_presets.cfg
+          # ИСПРАВЛЕНИЕ: Возвращаем правильный фильтр экспорта только РЕАЛЬНЫХ ресурсов игры,
+          # чтобы pck весил свои законные 7.8 МБ, а не 137 МБ!
+          sed -i 's/export_filter="all_resources"/export_filter="resources"/g' export_presets.cfg
           
-          # Проверяем, есть ли уже строка pck_split_size_kb, если есть — меняем на 512, если нет — дописываем
-          if grep -q "pck_split_size_kb" export_presets.cfg; then
-            sed -i 's/pck_split_size_kb=.*/pck_split_size_kb=512/g' export_presets.cfg
-          else
-            sed -i '/split_pck=true/a pck_split_size_kb=512' export_presets.cfg
-          fi
-          # ------------------------------------------------------------------
+          # Отключаем встроенный сплит Godot, так как мы сделаем его надежнее силами Linux
+          sed -i 's/split_pck=true/split_pck=false/g' export_presets.cfg
           
-          # Запускаем экспорт проекта через консоль Godot. 
-          # Он сам нарежет index.pck на куски по 512 КБ, используя нативные средства
+          # Запускаем экспорт проекта через консоль Godot (получаем чистый весящий 7.8 МБ pck)
           ./godot-cli --headless --export-release "Web" FinalBuild/index.html
+          
+          # --- НАДЁЖНАЯ НАРЕЗКА МОНОЛИТА НА ЧАНКИ ПО 512 КБ ЧЕРЕЗ LINUX SPLIT ---
+          cd FinalBuild/
+          # Разрезаем index.pck на файлы index.pck.001, index.pck.002 и т.д.
+          split -b 512k -d --suffix-length=3 index.pck index.pck.
+          # Удаляем исходный тяжелый монолит, чтобы он не занимал место в ZIP
+          rm index.pck
+          cd ..
           
           # Подставляем наш проверенный универсальный index.html и исправленный мост SDK
           cp index.html FinalBuild/index.html || true
@@ -91,7 +92,7 @@ jobs:
       - name: 📦 Pack Final Chanked ZIP for Mediacube
         run: |
           cd FinalBuild/
-          # Упаковываем все сгенерированные файлы (включая index.pck.001, index.pck.002 и т.д.)
+          # Упаковываем файлы напрямую из папки (все чанки index.pck.000, index.pck.001 попадут внутрь)
           zip -r ../KawaiiToyWash_YT_Ready.zip ./*
 
       - name: 💾 Upload Ready-to-Publish Playable Archive
