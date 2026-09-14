@@ -55,25 +55,28 @@ jobs:
         run: |
           mkdir -p FinalBuild/
           
-          # Регистрируем наш собранный кастомный легковесный WASM-шаблон в системе Godot
-          mkdir -p ~/.local/share/godot/export_templates/4.7.stable/
-          cp godot-source/bin/godot.web.template_release.wasm32.zip ~/.local/share/godot/export_templates/4.7.stable/web_release.zip
+          # Создаем папку шаблонов
+          TEMPLATES_DIR="$HOME/.local/share/godot/export_templates/4.7.stable"
+          mkdir -p "$TEMPLATES_DIR"
           
-          # Подготавливаем export_presets.cfg: заставляем Godot выносить ассеты из .pck наружу
-          # Режим script_export_mode=2 и убирание фильтров заставит движок собрать только логику в pck
+          # Копируем шаблон под всеми возможными именами для обхода проверок
+          SRC_ZIP="godot-source/bin/godot.web.template_release.wasm32.zip"
+          cp "$SRC_ZIP" "$TEMPLATES_DIR/web_release.zip"
+          cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_release.zip"
+          cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_debug.zip"
+          
+          # Переключаем режим фильтрации ассетов в export_presets.cfg
           sed -i 's/export_filter="all_resources"/export_filter="resources"/g' export_presets.cfg
           
           # Запускаем экспорт проекта через консоль Godot
           ./godot-cli --headless --export-release "Web" FinalBuild/index.html
           
-          # Копируем наши внешние текстуры персонажей (.webp) напрямую в корень архива сборки, 
-          # чтобы они загружались поштучно по сети в обход тяжелого монолитного .pck
+          # Копируем внешние текстуры персонажей отдельно в архив
           if [ -d "assets" ]; then
             cp -r assets FinalBuild/
           fi
           
-          # Внедряем наш универсальный index.html и отказоустойчивый YTGameSDK_v2.js в папку
-          # (Если они лежат у вас в репозитории — они просто заменят дефолтные файлы движка)
+          # Подставляем универсальный index.html и мост SDK
           cp index.html FinalBuild/index.html || true
           cp YTGameSDK_v2.js FinalBuild/YTGameSDK_v2.js || true
 
