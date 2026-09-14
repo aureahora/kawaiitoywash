@@ -1,4 +1,4 @@
-name: 🛠️ Build Custom Lightweight Web Export Template & Package Game
+name: 🛠️ Build Custom Lightweight Web Export Template & Package Chunks
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-web-template-and-export:
+  build-web-template:
     runs-on: ubuntu-24.04
 
     steps:
@@ -20,10 +20,13 @@ jobs:
             libxinerama-dev libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev libudev-dev \
             libxi-dev libxrandr-dev yasm wget unzip
           
-          # Скачиваем официальную консольную версию Godot 4.7-stable для автоматического экспорта ресурсов
-          wget https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip
-          unzip Godot_v4.7-stable_linux.x86_64.zip
-          mv Godot_v4.7-stable_linux.x86_64 godot-cli
+          # Скачиваем консольную версию Godot 4.7-stable для нарезки ресурсов. 
+          # Адрес обернут в кавычки для защиты от сбоев ИИ-чата.
+          URL="https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip"
+          wget "$URL" -O Godot_v4.7-stable_linux.x86_64.zip
+          
+          # Безопасно распаковываем и переименовываем в godot-cli
+          unzip -p Godot_v4.7-stable_linux.x86_64.zip > godot-cli
           chmod +x godot-cli
 
       - name: 🌐 Setup Emscripten (Compiler for Web)
@@ -48,53 +51,47 @@ jobs:
             module_lightmapper_rd_enabled=no \
             build_profile="../minimize.gdbuild"
 
-      # ============================================================================
-      # ПРОФЕССИОНАЛЬНАЯ ПОСТОБРАБОТКА ДЛЯ YOUTUBE PLAYABLES / MEDIACUBE
-      # ============================================================================
-      - name: 🚀 Automate Clean Web Export (Zero-Timeout Architecture)
+      - name: 🚀 Automate Split Web Export (Chunks 512 KiB)
         run: |
           mkdir -p FinalBuild/
           
-          # Создаем стандартную папку шаблонов Godot на сервере GitHub
+          # Регистрируем наш собранный кастомный легковесный WASM-шаблон в системе Godot
           TEMPLATES_DIR="$HOME/.local/share/godot/export_templates/4.7.stable"
           mkdir -p "$TEMPLATES_DIR"
-          
-          # Копируем наш свежескомпилированный легкий шаблон во все возможные слоты
           SRC_ZIP="godot-source/bin/godot.web.template_release.wasm32.zip"
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_release.zip"
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_release.zip"
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_debug.zip"
           
-          # --- ЗАЩИТА ОТ КРАША ИМПОРТА ЗВУКОВ (.WAV / .MP3) ---
-          # Начисто удаляем звуковые файлы и файлы их импорта перед экспортом,
-          # так как кастомный легкий WASM-шаблон на сервере не имеет аудио-декодеров
-          find . -name "*.wav" -delete
-          find . -name "*.mp3" -delete
-          find . -name "*.import" -delete
-          
-          # Стираем локальные пути вашего компьютера из конфига проекта
+          # Очищаем старые локальные жесткие пути вашего ПК к шаблонам из файла конфигурации
           sed -i 's|custom_template/release=".*"|custom_template/release=""|g' export_presets.cfg
           sed -i 's|custom_template/debug=".*"|custom_template/debug=""|g' export_presets.cfg
           
-          # Переключаем режим фильтрации ресурсов для облегчения index.pck
-          sed -i 's/export_filter="all_resources"/export_filter="resources"/g' export_presets.cfg
+          # --- ПРИНУДИТЕЛЬНАЯ НАСТРОЙКА РАЗДЕЛЕНИЯ PCK НА ЧАНКИ ПО 512 КБ ---
+          # Гарантируем, что фильтр собирает ВСЕ ресурсы (картинки и звуки вернутся внутрь архитектуры pck)
+          sed -i 's/export_filter="resources"/export_filter="all_resources"/g' export_presets.cfg
+          sed -i 's/split_pck=false/split_pck=true/g' export_presets.cfg
           
-          # Запускаем экспорт проекта через консоль Godot
+          # Проверяем, есть ли уже строка pck_split_size_kb, если есть — меняем на 512, если нет — дописываем
+          if grep -q "pck_split_size_kb" export_presets.cfg; then
+            sed -i 's/pck_split_size_kb=.*/pck_split_size_kb=512/g' export_presets.cfg
+          else
+            sed -i '/split_pck=true/a pck_split_size_kb=512' export_presets.cfg
+          fi
+          # ------------------------------------------------------------------
+          
+          # Запускаем экспорт проекта через консоль Godot. 
+          # Он сам нарежет index.pck на куски по 512 КБ, используя нативные средства
           ./godot-cli --headless --export-release "Web" FinalBuild/index.html
           
-          # Копируем внешние текстуры персонажей отдельно в архив
-          if [ -d "assets" ]; then
-            cp -r assets FinalBuild/
-          fi
-          
-          # Подставляем наш универсальный index.html и мост SDK
+          # Подставляем наш проверенный универсальный index.html и исправленный мост SDK
           cp index.html FinalBuild/index.html || true
           cp YTGameSDK_v2.js FinalBuild/YTGameSDK_v2.js || true
-          
-      - name: 📦 Pack Final Low-Weight Playables ZIP
+
+      - name: 📦 Pack Final Chanked ZIP for Mediacube
         run: |
           cd FinalBuild/
-          # Пакуем ВСЕ файлы напрямую из корня папки в финальный архив для Mediacube
+          # Упаковываем все сгенерированные файлы (включая index.pck.001, index.pck.002 и т.д.)
           zip -r ../KawaiiToyWash_YT_Ready.zip ./*
 
       - name: 💾 Upload Ready-to-Publish Playable Archive
