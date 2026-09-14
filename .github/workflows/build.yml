@@ -65,7 +65,14 @@ jobs:
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_release.zip"
           cp "$SRC_ZIP" "$TEMPLATES_DIR/web_nothreads_debug.zip"
           
-          # --- ИСПРАВЛЕНИЕ: Стираем локальные пути вашего компьютера из конфига проекта ---
+          # --- ЗАЩИТА ОТ КРАША ИМПОРТА ЗВУКОВ (.WAV / .MP3) ---
+          # Начисто удаляем звуковые файлы и файлы их импорта перед экспортом,
+          # так как кастомный легкий WASM-шаблон на сервере не имеет аудио-декодеров
+          find . -name "*.wav" -delete
+          find . -name "*.mp3" -delete
+          find . -name "*.import" -delete
+          
+          # Стираем локальные пути вашего компьютера из конфига проекта
           sed -i 's|custom_template/release=".*"|custom_template/release=""|g' export_presets.cfg
           sed -i 's|custom_template/debug=".*"|custom_template/debug=""|g' export_presets.cfg
           
@@ -83,7 +90,7 @@ jobs:
           # Подставляем наш универсальный index.html и мост SDK
           cp index.html FinalBuild/index.html || true
           cp YTGameSDK_v2.js FinalBuild/YTGameSDK_v2.js || true
-
+          
       - name: 📦 Pack Final Low-Weight Playables ZIP
         run: |
           cd FinalBuild/
