@@ -18,42 +18,48 @@ func _ready() -> void:
 	RenderingServer.set_default_clear_color(Color("443850")) 
 	setup_100_levels_data()
 	
-	# СИГНАЛ 1 ДЛЯ YOUTUBE: Говорим платформе, что первый кадр загружен и игра готова показаться на экране
-	if JavaScriptBridge.has_method("eval"):
-		JavaScriptBridge.eval("if(window.ytgame) { window.ytgame.firstFrameReady(); console.log('✅ YouTube SDK: firstFrameReady called'); }")
+	# БЕЗОПАСНЫЙ ВЫЗОВ ИНИЦИАЛИЗАЦИИ БЕЗ ИМЕНИ КЛАССА
+	var wrapper = get_node_or_null("/root/YTGameWrapper")
+	if wrapper:
+		if wrapper.has_method("game_ready"):
+			wrapper.game_ready()
 		
+		# Безопасное подключение сигналов рекламы, сохранений и звуков
+		if wrapper.has_signal("audio_enabled_changed"): 
+			wrapper.audio_enabled_changed.connect(_on_youtube_audio_changed)
+		if wrapper.has_signal("game_paused"): 
+			wrapper.game_paused.connect(_on_youtube_game_paused)
+		if wrapper.has_signal("game_resumed"): 
+			wrapper.game_resumed.connect(_on_youtube_game_resumed)
+		if wrapper.has_signal("load_data_received"): 
+			wrapper.load_data_received.connect(_on_youtube_data_loaded)
+		if wrapper.has_signal("ad_request_success"): 
+			wrapper.ad_request_success.connect(_on_ad_finished)
+		if wrapper.has_signal("ad_request_failed"): 
+			wrapper.ad_request_failed.connect(_on_ad_failed)
+			
 	ui.show_menu_window("KAWAII TOY WASH", "Welcome! Clean all the dirty toys!", "PLAY")
-	
-	# Безопасное подключение сигналов рекламы и звуков (если обертка существует)
-	if has_node("/root/YTGameWrapper"):
-		var wrapper = get_node("/root/YTGameWrapper")
-		if wrapper.has_signal("audio_enabled_changed"): wrapper.audio_enabled_changed.connect(_on_youtube_audio_changed)
-		if wrapper.has_signal("game_paused"): wrapper.game_paused.connect(_on_youtube_game_paused)
-		if wrapper.has_signal("game_resumed"): wrapper.game_resumed.connect(_on_youtube_game_resumed)
-		if wrapper.has_signal("load_data_received"): wrapper.load_data_received.connect(_on_youtube_data_loaded)
-		if wrapper.has_signal("ad_request_success"): wrapper.ad_request_success.connect(_on_ad_finished)
-		if wrapper.has_signal("ad_request_failed"): wrapper.ad_request_failed.connect(_on_ad_failed)
-
 	setup_tutorial_label()
 
-func load_level(index: int) -> void:
-	# СИГНАЛ 2 ДЛЯ YOUTUBE: Говорим платформе, что уровень загружен и игрок может управлять губкой
-	if JavaScriptBridge.has_method("eval"):
-		JavaScriptBridge.eval("if(window.ytgame) { window.ytgame.gameReady(); console.log('✅ YouTube SDK: gameReady called'); }")
 
+func load_level(index: int) -> void:
+	# --- ИСПРАВЛЕНИЕ ДЛЯ YOUTUBE SDK ---
+	# Прямой вызов window.ytgame.gameReady() удален, так как он вызывается строго один раз в _ready()
+	# -----------------------------------
+	
 	if index >= levels.size():
 		game_state = "GAME_WIN"
 		final_win_timer = 0.0
-		ui.show_menu_window("VICTORY! 🎉", "You are the Ultimate Supreme Washer!", "REPLAY")
+		ui.show_menu_window("VICTORY! ", "You are the Ultimate Supreme Washer!", "REPLAY")
 		is_active = false
 		return
-		
+
 	# Вызов межстраничной рекламы раз в 4 уровня
 	if index > 0 and index % 4 == 0 and game_state != "PLAYING" and index % 20 != 0:
 		var wrapper = get_node_or_null("/root/YTGameWrapper")
 		if wrapper and wrapper.has_method("request_interstitial_ad"):
 			wrapper.request_interstitial_ad()
-			
+
 	game_state = "PLAYING"
 	current_level_index = index
 	RenderingServer.set_default_clear_color(Color("443850"))
@@ -61,7 +67,7 @@ func load_level(index: int) -> void:
 	painter.prepare_character_textures(levels[index])
 	tutorial_label.visible = (index == 0)
 	is_active = true
-
+	
 func setup_100_levels_data() -> void:
 	# СТРОГО СИНХРОНИЗИРОВАНО С ВАШИМИ РЕАЛЬНЫМИ ПРОМТАМИ И ФАЙЛАМИ (БЕЗ ПУТАНИЦЫ)
 	var base_ids = [
@@ -122,13 +128,18 @@ func _on_youtube_data_loaded(save_data_string: String) -> void:
 		var data = json.get_data()
 		if data.has("saved_level"):
 			current_level_index = int(data["saved_level"])
-
+		
 func save_progress_to_youtube() -> void:
-	if not is_cloud_data_ready: return
+	if not is_cloud_data_ready: 
+		return
 	var save_dict = {"saved_level": current_level_index}
 	var save_string = JSON.stringify(save_dict)
-	if YTGameWrapper.has_method("save_data"):
+	
+	# --- ИСПРАВЛЕНИЕ: Прямое безопасное обращение к синглтону ---
+	if typeof(YTGameWrapper) != TYPE_NIL and YTGameWrapper.has_method("save_data"):
 		YTGameWrapper.save_data(save_string)
+		print("YouTube SDK: Прогресс сохранен в облако: ", save_string)
+	# ------------------------------------------------------------
 
 func _on_ad_finished() -> void: _proceed_after_ad()
 func _on_ad_failed(_err: String) -> void: _proceed_after_ad()
@@ -146,12 +157,16 @@ func _on_menu_button_pressed() -> void:
 		ui.hide_menu_window()
 		load_level(current_level_index)
 		return
+		
+	# ИСПРАВЛЕНИЕ: Безопасное обращение к синглтону напрямую без get_node()
 	if current_level_index > 0 and current_level_index % 20 == 0 and game_state == "PLAYING":
-		YTGameWrapper.request_interstitial_ad()
+		if typeof(YTGameWrapper) != TYPE_NIL and YTGameWrapper.has_method("request_interstitial_ad"):
+			YTGameWrapper.request_interstitial_ad()
 		return
+		
 	ui.hide_menu_window()
 	load_level(current_level_index)
-
+	
 func _process(delta: float) -> void:
 	if game_state == "GAME_WIN":
 		final_win_timer += delta
@@ -171,25 +186,28 @@ func complete_level() -> void:
 	ui.update_progress_text(100)
 	painter.hide_dirty_sprite()
 	$EffectManager.spawn_victory_firework()
+	
+	# ИСПРАВЛЕНИЕ: Безопасная отправка счета напрямую в автозагрузку
 	var score = (current_level_index + 1) * 100
-	if YTGameWrapper.has_method("send_score"):
+	if typeof(YTGameWrapper) != TYPE_NIL and YTGameWrapper.has_method("send_score"):
 		YTGameWrapper.send_score(score)
+		
 	save_progress_to_youtube()
 	get_tree().create_timer(1.2).timeout.connect(func():
-		var title = "SO CLEAN! ✨"
+		var title = "SO CLEAN! "
 		var sub = "You successfully washed the " + level_titles[current_level_index] + "!"
 		current_level_index += 1
 		if current_level_index % 20 == 0 and current_level_index < 100:
 			var d_name = ""
-			if current_level_index == 20: d_name = "Magic & Fantasy ✨"
-			elif current_level_index == 40: d_name = "Space & Galaxy 🚀"
-			elif current_level_index == 60: d_name = "Cyber & Robots 🤖"
-			elif current_level_index == 80: d_name = "Sweet Kingdom 🍬"
-			ui.show_menu_window("NEW PACK UNLOCKED!", "Watch a short video to unlock the " + d_name + " department!", "UNLOCK WITH AD 📺")
+			if current_level_index == 20: d_name = "Magic & Fantasy "
+			elif current_level_index == 40: d_name = "Space & Galaxy "
+			elif current_level_index == 60: d_name = "Cyber & Robots "
+			elif current_level_index == 80: d_name = "Sweet Kingdom "
+			ui.show_menu_window("NEW PACK UNLOCKED!", "Watch a short video to unlock the " + d_name + " department!", "UNLOCK WITH AD ")
 		else:
 			ui.show_menu_window(title, sub, "CONTINUE")
 	)
-
+	
 func _unhandled_input(event: InputEvent) -> void:
 	if tutorial_label and tutorial_label.visible:
 		if event is InputEventMouseButton and event.pressed:
