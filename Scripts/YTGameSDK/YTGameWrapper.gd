@@ -26,28 +26,35 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		# Create a global object for JS to hold callback functions
 		JavaScriptBridge.eval("""
-			window.GodotYTCallbacks = {
-				onAudioEnabledChanged: (isEnabled) => {},
-				onGamePaused: () => {},
-				onGameResumed: () => {},
-				onLoadDataReceived: (data) => {},
-				onSaveSuccess: () => {},
-				onSaveFailed: (error) => {},
-				onAdSuccess: () => {},
-				onAdFailed: (error) => {}
-			};
+		window.GodotYTCallbacks = {
+			onAudioEnabledChanged: (isEnabled) => {},
+			onGamePaused: () => {},
+			onGameResumed: () => {},
+			onLoadDataReceived: (data) => {},
+			onSaveSuccess: () => {},
+			onSaveFailed: (error) => {},
+			onAdSuccess: () => {},
+			onAdFailed: (error) => {}
+		};
 		""")
 		
-		# Create Godot-side callbacks and assign them to the JS object
+		# Получаем интерфейс к объекту JavaScript
 		var godot_callbacks = JavaScriptBridge.get_interface("GodotYTCallbacks")
-		godot_callbacks.set("onAudioEnabledChanged", Callable(self, "_on_audio_enabled_changed"))
-		godot_callbacks.set("onGamePaused", Callable(self, "_on_game_paused"))
-		godot_callbacks.set("onGameResumed", Callable(self, "_on_game_resumed"))
-		godot_callbacks.set("onLoadDataReceived", Callable(self, "_on_load_data_received"))
-		godot_callbacks.set("onSaveSuccess", Callable(self, "_on_save_success"))
-		godot_callbacks.set("onSaveFailed", Callable(self, "_on_save_failed"))
-		godot_callbacks.set("onAdSuccess", Callable(self, "_on_ad_success"))
-		godot_callbacks.set("onAdFailed", Callable(self, "_on_ad_failed"))
+		
+		if godot_callbacks:
+			# --- ИСПРАВЛЕНИЕ ПОД СТАНДАРТ GODOT 4 ---
+			# В Godot 4 у JavaScriptObject НЕТ метода .set().
+			# Присвоение Callable-объектов делается через квадратные скобки:
+			godot_callbacks["onAudioEnabledChanged"] = Callable(self, "_on_audio_enabled_changed")
+			godot_callbacks["onGamePaused"] = Callable(self, "_on_game_paused")
+			godot_callbacks["onGameResumed"] = Callable(self, "_on_game_resumed")
+			godot_callbacks["onLoadDataReceived"] = Callable(self, "_on_load_data_received")
+			godot_callbacks["onSaveSuccess"] = Callable(self, "_on_save_success")
+			godot_callbacks["onSaveFailed"] = Callable(self, "_on_save_failed")
+			godot_callbacks["onAdSuccess"] = Callable(self, "_on_ad_success")
+			godot_callbacks["onAdFailed"] = Callable(self, "_on_ad_failed")
+			
+			print("YouTube SDK: Godot 4 JS Callbacks successfully linked.")
 		
 		# Tell the JS library to set up its own internal callbacks to YouTube
 		var js_code = "%s.setAllCallbacks();" % YT_GAME_SDK_JS_WINDOW_OBJECT
